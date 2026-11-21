@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="EventTicketing.API/EventTicketing.API.csproj" />
+  <Project Path="EventTicketing.Core/EventTicketing.Core.csproj" />
+  <Project Path="EventTicketing.Data/EventTicketing.Data.csproj" />
+  <Project Path="EventTicketing.Service/EventTicketing.Service.csproj" />
+  <Project Path="EventTicketing.Tests/EventTicketing.Tests.csproj" Id="510e66b8-c340-4e37-b6c2-721f2f19ecb7" />
+</Solution>
