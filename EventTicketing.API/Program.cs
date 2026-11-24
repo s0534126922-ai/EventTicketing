@@ -80,6 +80,36 @@ builder.Services.AddScoped<IBookingService, BookingService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 
+var allowedOrigins = builder.Configuration
+    .GetSection("Cors:AllowedOrigins")
+    .Get<string[]>() ?? Array.Empty<string>();
+
+if (builder.Environment.IsDevelopment())
+{
+    allowedOrigins = allowedOrigins
+        .Concat(new[]
+        {
+            "http://localhost:5500",
+            "http://127.0.0.1:5500"
+        })
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .ToArray();
+}
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("ClientPolicy", policy =>
+    {
+        policy
+            .WithOrigins(allowedOrigins)
+            .WithMethods("GET", "POST", "PUT", "PATCH", "DELETE")
+            .AllowAnyHeader()
+            .WithExposedHeaders(
+                "X-Correlation-ID",
+                "Location");
+    });
+});
+
 var jwtKey = builder.Configuration["Jwt:Key"];
 var jwtIssuer = builder.Configuration["Jwt:Issuer"];
 var jwtAudience = builder.Configuration["Jwt:Audience"];
@@ -142,8 +172,14 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseRouting();
+
+app.UseCors("ClientPolicy");
+
 app.UseAuthentication();
 app.UseAuthorization();
+
 app.MapControllers();
 
 app.Run();
