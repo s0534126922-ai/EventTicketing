@@ -1,4 +1,4 @@
-﻿
+
 using System.Data.Common;
 using EventTicketing.Core.DTOs.Bookings;
 using EventTicketing.Core.Entities;
@@ -454,7 +454,7 @@ public class BookingServiceIntegrationTests
         await TestDatabaseFactory.VerifyDatabaseAsync(connection);
 
         await using var transaction =
-            await connection.BeginTransactionAsync();
+            await connection.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
 
         try
         {

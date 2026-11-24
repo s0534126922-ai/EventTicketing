@@ -1,6 +1,7 @@
-﻿
+﻿using System.Data;
 using EventTicketing.Core.Interfaces;
 using EventTicketing.Data.Context;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 
 namespace EventTicketing.Data;
@@ -24,14 +25,17 @@ public class UnitOfWork : IUnitOfWork, IAsyncDisposable
     public async Task BeginTransactionAsync(
         CancellationToken cancellationToken = default)
     {
-        if (_transaction is not null)
+        if (_transaction is not null ||
+            _context.Database.CurrentTransaction is not null)
         {
             throw new InvalidOperationException(
                 "A transaction is already active.");
         }
 
         _transaction = await _context.Database
-            .BeginTransactionAsync(cancellationToken);
+            .BeginTransactionAsync(
+                IsolationLevel.Serializable,
+                cancellationToken);
     }
 
     public async Task CommitTransactionAsync(
@@ -75,6 +79,118 @@ public class UnitOfWork : IUnitOfWork, IAsyncDisposable
         {
             _transaction = null;
             await transaction.DisposeAsync();
+        }
+    }
+
+    public async Task ExecuteInTransactionAsync(
+        Func<CancellationToken, Task> operation,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(operation);
+
+        await ExecuteInTransactionAsync(
+            async ct =>
+            {
+                await operation(ct);
+                return true;
+            },
+            cancellationToken);
+    }
+
+    public async Task<TResult> ExecuteInTransactionAsync<TResult>(
+        Func<CancellationToken, Task<TResult>> operation,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(operation);
+
+        var existingTransaction =
+            _context.Database.CurrentTransaction;
+
+        if (existingTransaction is not null)
+        {
+            return await ExecuteWithSavepointAsync(
+                existingTransaction,
+                operation,
+                cancellationToken);
+        }
+
+        await BeginTransactionAsync(cancellationToken);
+
+        try
+        {
+            var result = await operation(cancellationToken);
+
+            await CommitTransactionAsync(cancellationToken);
+
+            return result;
+        }
+        catch
+        {
+            try
+            {
+                if (_transaction is not null)
+                {
+                    await RollbackTransactionAsync(
+                        CancellationToken.None);
+                }
+            }
+            finally
+            {
+                _context.ChangeTracker.Clear();
+            }
+
+            throw;
+        }
+    }
+
+    private async Task<TResult> ExecuteWithSavepointAsync<TResult>(
+        IDbContextTransaction transaction,
+        Func<CancellationToken, Task<TResult>> operation,
+        CancellationToken cancellationToken)
+    {
+        if (transaction.GetDbTransaction().IsolationLevel !=
+            IsolationLevel.Serializable)
+        {
+            throw new InvalidOperationException(
+                "The existing transaction must use Serializable isolation.");
+        }
+
+        if (!transaction.SupportsSavepoints)
+        {
+            throw new InvalidOperationException(
+                "The existing transaction does not support savepoints.");
+        }
+
+        var savepoint = $"sp_{Guid.NewGuid():N}";
+
+        await transaction.CreateSavepointAsync(
+            savepoint, cancellationToken);
+
+        try
+        {
+            var result = await operation(cancellationToken);
+
+            await transaction.ReleaseSavepointAsync(
+                savepoint, cancellationToken);
+
+            return result;
+        }
+        catch
+        {
+            try
+            {
+                await transaction.RollbackToSavepointAsync(
+                    savepoint, CancellationToken.None);
+
+                await transaction.ReleaseSavepointAsync(
+                    savepoint, CancellationToken.None);
+            }
+            finally
+            {
+                _context.ChangeTracker.Clear();
+            }
+
+            throw;
         }
     }
 

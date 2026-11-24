@@ -126,50 +126,54 @@ public class EventService : IEventService
         var (startUtc, endUtc) = ValidateTimes(
             request.StartTime, request.EndTime);
 
-        if (startUtc < IsraelTimeHelper.UtcNow.AddHours(24))
-            throw new ValidationException(
-                "Events must be created at least 24 hours in advance.");
-
-        var hall = await GetHallWithSeatsAsync(
-            request.HallId, cancellationToken);
-
-        await EnsureNoScheduleConflictAsync(
-            hall.Id,
-            startUtc,
-            endUtc,
-            null,
-            cancellationToken);
-
-        var eventEntity = new Event
-        {
-            Name = name,
-            Description = description,
-            HallId = hall.Id,
-            Hall = hall,
-            StartTime = startUtc,
-            EndTime = endUtc,
-            Status = EventStatus.Active
-        };
-
-        foreach (var seat in hall.Seats)
-        {
-            eventEntity.EventSeats.Add(new EventSeat
+        return await _unitOfWork.ExecuteInTransactionAsync(
+            async ct =>
             {
-                SeatId = seat.Id,
-                Status = SeatStatus.Available
-            });
-        }
+                if (startUtc < IsraelTimeHelper.UtcNow.AddHours(24))
+                    throw new ValidationException(
+                        "Events must be created at least 24 hours in advance.");
 
-        hall.HasEverHostedEvent = true;
+                var hall = await GetHallWithSeatsAsync(
+                    request.HallId, ct);
 
-        await _eventRepository.AddAsync(
-            eventEntity, cancellationToken);
+                await EnsureNoScheduleConflictAsync(
+                    hall.Id,
+                    startUtc,
+                    endUtc,
+                    null,
+                    ct);
 
-        await _unitOfWork.SaveChangesAsync(
+                var eventEntity = new Event
+                {
+                    Name = name,
+                    Description = description,
+                    HallId = hall.Id,
+                    Hall = hall,
+                    StartTime = startUtc,
+                    EndTime = endUtc,
+                    Status = EventStatus.Active
+                };
+
+                foreach (var seat in hall.Seats)
+                {
+                    eventEntity.EventSeats.Add(new EventSeat
+                    {
+                        SeatId = seat.Id,
+                        Status = SeatStatus.Available
+                    });
+                }
+
+                hall.HasEverHostedEvent = true;
+
+                await _eventRepository.AddAsync(
+                    eventEntity, ct);
+
+                await _unitOfWork.SaveChangesAsync(ct);
+
+                return _mapper.Map<EventResponseDto>(
+                    eventEntity);
+            },
             cancellationToken);
-
-        return _mapper.Map<EventResponseDto>(
-            eventEntity);
     }
 
     public async Task UpdateAsync(
@@ -181,105 +185,109 @@ public class EventService : IEventService
             throw new ValidationException(
                 "Event request is required.");
 
-        var eventEntity =
-            await GetEventAsync(id, cancellationToken);
+        await _unitOfWork.ExecuteInTransactionAsync(
+            async ct =>
+            {
+                var eventEntity =
+                    await GetEventAsync(id, ct);
 
-        EnsureEditable(eventEntity);
+                EnsureEditable(eventEntity);
 
-        var name = ValidateName(request.Name);
-        var description =
-            ValidateDescription(request.Description);
+                var name = ValidateName(request.Name);
+                var description =
+                    ValidateDescription(request.Description);
 
-        ValidateHallId(request.HallId);
+                ValidateHallId(request.HallId);
 
-        var (startUtc, endUtc) = ValidateTimes(
-            request.StartTime, request.EndTime);
+                var (startUtc, endUtc) = ValidateTimes(
+                    request.StartTime, request.EndTime);
 
-        var hasBookings =
-            await _eventRepository.HasAnyBookingsAsync(
-                id, cancellationToken);
+                var hasBookings =
+                    await _eventRepository.HasAnyBookingsAsync(
+                        id, ct);
 
-        var oldDate = IsraelTimeHelper
-            .ToIsrael(eventEntity.StartTime).Date;
+                var oldDate = IsraelTimeHelper
+                    .ToIsrael(eventEntity.StartTime).Date;
 
-        var newDate = IsraelTimeHelper
-            .ToIsrael(startUtc).Date;
+                var newDate = IsraelTimeHelper
+                    .ToIsrael(startUtc).Date;
 
-        bool hallChanged =
-            request.HallId != eventEntity.HallId;
+                bool hallChanged =
+                    request.HallId != eventEntity.HallId;
 
-        bool dateChanged = oldDate != newDate;
+                bool dateChanged = oldDate != newDate;
 
-        bool timesChanged =
-            startUtc != eventEntity.StartTime ||
-            endUtc != eventEntity.EndTime;
+                bool timesChanged =
+                    startUtc != eventEntity.StartTime ||
+                    endUtc != eventEntity.EndTime;
 
-        if (hasBookings &&
-            (hallChanged || dateChanged || timesChanged))
-        {
-            throw new ConflictException(
-                "Hall, date and times cannot be changed " +
-                "after any user booking has existed.");
-        }
-
-        if (IsraelTimeHelper.IsraelNow >= newDate)
-        {
-            throw new ConflictException(
-                "The new event date has passed its editing deadline.");
-        }
-
-        if (startUtc <= IsraelTimeHelper.UtcNow)
-        {
-            throw new ValidationException(
-                "Event start time must be in the future.");
-        }
-
-        await EnsureNoScheduleConflictAsync(
-            request.HallId,
-            startUtc,
-            endUtc,
-            id,
-            cancellationToken);
-
-        if (hallChanged)
-        {
-            var newHall = await GetHallWithSeatsAsync(
-                request.HallId, cancellationToken);
-
-            var oldEventSeats =
-                eventEntity.EventSeats.ToList();
-
-            _eventSeatRepository.RemoveRange(
-                oldEventSeats);
-
-            eventEntity.EventSeats.Clear();
-
-            var newEventSeats = newHall.Seats
-                .Select(seat => new EventSeat
+                if (hasBookings &&
+                    (hallChanged || dateChanged || timesChanged))
                 {
-                    EventId = eventEntity.Id,
-                    SeatId = seat.Id,
-                    Status = SeatStatus.Available
-                })
-                .ToList();
+                    throw new ConflictException(
+                        "Hall, date and times cannot be changed " +
+                        "after any user booking has existed.");
+                }
 
-            await _eventSeatRepository.AddRangeAsync(
-                newEventSeats, cancellationToken);
+                if (IsraelTimeHelper.IsraelNow >= newDate)
+                {
+                    throw new ConflictException(
+                        "The new event date has passed its editing deadline.");
+                }
 
-            eventEntity.HallId = newHall.Id;
-            eventEntity.Hall = newHall;
+                if (startUtc <= IsraelTimeHelper.UtcNow)
+                {
+                    throw new ValidationException(
+                        "Event start time must be in the future.");
+                }
 
-            newHall.HasEverHostedEvent = true;
-        }
+                await EnsureNoScheduleConflictAsync(
+                    request.HallId,
+                    startUtc,
+                    endUtc,
+                    id,
+                    ct);
 
-        eventEntity.Name = name;
-        eventEntity.Description = description;
-        eventEntity.StartTime = startUtc;
-        eventEntity.EndTime = endUtc;
+                if (hallChanged)
+                {
+                    var newHall = await GetHallWithSeatsAsync(
+                        request.HallId, ct);
 
-        _eventRepository.Update(eventEntity);
+                    var oldEventSeats =
+                        eventEntity.EventSeats.ToList();
 
-        await _unitOfWork.SaveChangesAsync(
+                    _eventSeatRepository.RemoveRange(
+                        oldEventSeats);
+
+                    eventEntity.EventSeats.Clear();
+
+                    var newEventSeats = newHall.Seats
+                        .Select(seat => new EventSeat
+                        {
+                            EventId = eventEntity.Id,
+                            SeatId = seat.Id,
+                            Status = SeatStatus.Available
+                        })
+                        .ToList();
+
+                    await _eventSeatRepository.AddRangeAsync(
+                        newEventSeats, ct);
+
+                    eventEntity.HallId = newHall.Id;
+                    eventEntity.Hall = newHall;
+
+                    newHall.HasEverHostedEvent = true;
+                }
+
+                eventEntity.Name = name;
+                eventEntity.Description = description;
+                eventEntity.StartTime = startUtc;
+                eventEntity.EndTime = endUtc;
+
+                _eventRepository.Update(eventEntity);
+
+                await _unitOfWork.SaveChangesAsync(ct);
+            },
             cancellationToken);
     }
 
@@ -287,53 +295,57 @@ public class EventService : IEventService
         int id,
         CancellationToken cancellationToken = default)
     {
-        var eventEntity =
-            await GetEventAsync(id, cancellationToken);
-
-        if (eventEntity.Status != EventStatus.Active)
-            throw new ConflictException(
-                "Only active events can be cancelled.");
-
-        if (eventEntity.StartTime <= IsraelTimeHelper.UtcNow)
-            throw new ConflictException(
-                "An event cannot be cancelled after it starts.");
-
-        var bookings =
-            await _bookingRepository.GetConfirmedByEventIdAsync(
-                id, cancellationToken);
-
-        var bookedSeatIds = bookings
-            .Select(booking => booking.EventSeatId)
-            .ToHashSet();
-
-        eventEntity.Status = EventStatus.Cancelled;
-
-        foreach (var booking in bookings)
-        {
-            booking.Status = BookingStatus.CancelledByEvent;
-            _bookingRepository.Update(booking);
-        }
-
-        foreach (var eventSeat in eventEntity.EventSeats)
-        {
-            if (bookedSeatIds.Contains(eventSeat.Id))
+        await _unitOfWork.ExecuteInTransactionAsync(
+            async ct =>
             {
-                if (eventSeat.Status != SeatStatus.Booked)
-                {
+                var eventEntity =
+                    await GetEventAsync(id, ct);
+
+                if (eventEntity.Status != EventStatus.Active)
                     throw new ConflictException(
-                        "Booking and seat status are inconsistent.");
+                        "Only active events can be cancelled.");
+
+                if (eventEntity.StartTime <= IsraelTimeHelper.UtcNow)
+                    throw new ConflictException(
+                        "An event cannot be cancelled after it starts.");
+
+                var bookings =
+                    await _bookingRepository.GetConfirmedByEventIdAsync(
+                        id, ct);
+
+                var bookedSeatIds = bookings
+                    .Select(booking => booking.EventSeatId)
+                    .ToHashSet();
+
+                eventEntity.Status = EventStatus.Cancelled;
+
+                foreach (var booking in bookings)
+                {
+                    booking.Status = BookingStatus.CancelledByEvent;
+                    _bookingRepository.Update(booking);
                 }
 
-                eventSeat.Status = SeatStatus.Available;
-                eventSeat.Version = Guid.NewGuid();
+                foreach (var eventSeat in eventEntity.EventSeats)
+                {
+                    if (bookedSeatIds.Contains(eventSeat.Id))
+                    {
+                        if (eventSeat.Status != SeatStatus.Booked)
+                        {
+                            throw new ConflictException(
+                                "Booking and seat status are inconsistent.");
+                        }
 
-                _eventSeatRepository.Update(eventSeat);
-            }
-        }
+                        eventSeat.Status = SeatStatus.Available;
+                        eventSeat.Version = Guid.NewGuid();
 
-        _eventRepository.Update(eventEntity);
+                        _eventSeatRepository.Update(eventSeat);
+                    }
+                }
 
-        await _unitOfWork.SaveChangesAsync(
+                _eventRepository.Update(eventEntity);
+
+                await _unitOfWork.SaveChangesAsync(ct);
+            },
             cancellationToken);
     }
 
@@ -341,34 +353,38 @@ public class EventService : IEventService
         int id,
         CancellationToken cancellationToken = default)
     {
-        var eventEntity =
-            await GetEventAsync(id, cancellationToken);
+        await _unitOfWork.ExecuteInTransactionAsync(
+            async ct =>
+            {
+                var eventEntity =
+                    await GetEventAsync(id, ct);
 
-        if (eventEntity.Status != EventStatus.Cancelled)
-            throw new ConflictException(
-                "Only cancelled events can be restored.");
+                if (eventEntity.Status != EventStatus.Cancelled)
+                    throw new ConflictException(
+                        "Only cancelled events can be restored.");
 
-        var eventDate = IsraelTimeHelper
-            .ToIsrael(eventEntity.StartTime).Date;
+                var eventDate = IsraelTimeHelper
+                    .ToIsrael(eventEntity.StartTime).Date;
 
-        if (IsraelTimeHelper.IsraelNow >= eventDate)
-        {
-            throw new ConflictException(
-                "The event restoration deadline has passed.");
-        }
+                if (IsraelTimeHelper.IsraelNow >= eventDate)
+                {
+                    throw new ConflictException(
+                        "The event restoration deadline has passed.");
+                }
 
-        await EnsureNoScheduleConflictAsync(
-            eventEntity.HallId,
-            eventEntity.StartTime,
-            eventEntity.EndTime,
-            id,
-            cancellationToken);
+                await EnsureNoScheduleConflictAsync(
+                    eventEntity.HallId,
+                    eventEntity.StartTime,
+                    eventEntity.EndTime,
+                    id,
+                    ct);
 
-        eventEntity.Status = EventStatus.Active;
+                eventEntity.Status = EventStatus.Active;
 
-        _eventRepository.Update(eventEntity);
+                _eventRepository.Update(eventEntity);
 
-        await _unitOfWork.SaveChangesAsync(
+                await _unitOfWork.SaveChangesAsync(ct);
+            },
             cancellationToken);
     }
 

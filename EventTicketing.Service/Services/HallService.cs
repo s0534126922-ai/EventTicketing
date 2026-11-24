@@ -104,20 +104,24 @@ public class HallService : IHallService
 
         var name = ValidateName(request.Name);
 
-        var hall = await _hallRepository.GetByIdAsync(
-            id, cancellationToken);
+        await _unitOfWork.ExecuteInTransactionAsync(
+            async ct =>
+            {
+                var hall = await _hallRepository.GetByIdAsync(
+                    id, ct);
 
-        if (hall is null)
-        {
-            throw new NotFoundException(
-                "Hall not found.");
-        }
+                if (hall is null)
+                {
+                    throw new NotFoundException(
+                        "Hall not found.");
+                }
 
-        hall.Name = name;
+                hall.Name = name;
 
-        _hallRepository.Update(hall);
+                _hallRepository.Update(hall);
 
-        await _unitOfWork.SaveChangesAsync(
+                await _unitOfWork.SaveChangesAsync(ct);
+            },
             cancellationToken);
     }
 
@@ -125,29 +129,33 @@ public class HallService : IHallService
         int id,
         CancellationToken cancellationToken = default)
     {
-        var hall = await _hallRepository.GetByIdWithSeatsAsync(
-            id, cancellationToken);
+        await _unitOfWork.ExecuteInTransactionAsync(
+            async ct =>
+            {
+                var hall = await _hallRepository.GetByIdWithSeatsAsync(
+                    id, ct);
 
-        if (hall is null)
-        {
-            throw new NotFoundException(
-                "Hall not found.");
-        }
+                if (hall is null)
+                {
+                    throw new NotFoundException(
+                        "Hall not found.");
+                }
 
-        var hasHostedEvent =
-            hall.HasEverHostedEvent ||
-            await _hallRepository.HasEverHostedEventAsync(
-                id, cancellationToken);
+                var hasHostedEvent =
+                    hall.HasEverHostedEvent ||
+                    await _hallRepository.HasEverHostedEventAsync(
+                        id, ct);
 
-        if (hasHostedEvent)
-        {
-            throw new ConflictException(
-                "A hall that has hosted an event cannot be deleted.");
-        }
+                if (hasHostedEvent)
+                {
+                    throw new ConflictException(
+                        "A hall that has hosted an event cannot be deleted.");
+                }
 
-        _hallRepository.Delete(hall);
+                _hallRepository.Delete(hall);
 
-        await _unitOfWork.SaveChangesAsync(
+                await _unitOfWork.SaveChangesAsync(ct);
+            },
             cancellationToken);
     }
 

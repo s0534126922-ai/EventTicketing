@@ -1,4 +1,4 @@
-﻿using EventTicketing.Core.DTOs.Bookings;
+using EventTicketing.Core.DTOs.Bookings;
 using EventTicketing.Core.Entities;
 using EventTicketing.Core.Enums;
 using EventTicketing.Core.Exceptions;
@@ -92,7 +92,7 @@ public sealed class BookingReadIntegrationTests
             connection);
 
         await using var transaction =
-            await connection.BeginTransactionAsync();
+            await connection.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
 
         try
         {

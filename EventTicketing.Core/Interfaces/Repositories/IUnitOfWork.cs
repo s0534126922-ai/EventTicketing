@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace EventTicketing.Core.Interfaces;
+﻿namespace EventTicketing.Core.Interfaces;
 
 public interface IUnitOfWork
 {
@@ -16,5 +12,13 @@ public interface IUnitOfWork
         CancellationToken cancellationToken = default);
 
     Task RollbackTransactionAsync(
+        CancellationToken cancellationToken = default);
+
+    Task ExecuteInTransactionAsync(
+        Func<CancellationToken, Task> operation,
+        CancellationToken cancellationToken = default);
+
+    Task<TResult> ExecuteInTransactionAsync<TResult>(
+        Func<CancellationToken, Task<TResult>> operation,
         CancellationToken cancellationToken = default);
 }

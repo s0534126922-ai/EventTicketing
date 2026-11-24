@@ -1,4 +1,4 @@
-﻿using EventTicketing.Core.DTOs.Bookings;
+using EventTicketing.Core.DTOs.Bookings;
 using EventTicketing.Core.Entities;
 using EventTicketing.Core.Enums;
 using EventTicketing.Core.Exceptions;
@@ -31,6 +31,9 @@ public class BookingServiceUnitTests
 
     public BookingServiceUnitTests()
     {
+        _unitOfWork.Setup(x => x.ExecuteInTransactionAsync(It.IsAny<Func<CancellationToken, Task>>(), It.IsAny<CancellationToken>())).Returns((Func<CancellationToken, Task> operation, CancellationToken ct) => operation(ct));
+        _unitOfWork.Setup(x => x.ExecuteInTransactionAsync<BookingConfirmationResponseDto>(It.IsAny<Func<CancellationToken, Task<BookingConfirmationResponseDto>>>(), It.IsAny<CancellationToken>())).Returns((Func<CancellationToken, Task<BookingConfirmationResponseDto>> operation, CancellationToken ct) => operation(ct));
+
         _service = new BookingService(
             _bookingRepository.Object,
             _eventSeatRepository.Object,

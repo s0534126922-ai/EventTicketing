@@ -102,40 +102,44 @@ public class EventSeatService : IEventSeatService
                 "Event seat IDs must be positive and unique.");
         }
 
-        var eventEntity = await GetEventAsync(
-            eventId, cancellationToken);
+        await _unitOfWork.ExecuteInTransactionAsync(
+            async ct =>
+            {
+                var eventEntity = await GetEventAsync(
+                    eventId, ct);
 
-        if (eventEntity.Status != EventStatus.Active ||
-            eventEntity.StartTime <= IsraelTimeHelper.UtcNow)
-        {
-            throw new ConflictException(
-                "Seats can be managed only before an active event starts.");
-        }
+                if (eventEntity.Status != EventStatus.Active ||
+                    eventEntity.StartTime <= IsraelTimeHelper.UtcNow)
+                {
+                    throw new ConflictException(
+                        "Seats can be managed only before an active event starts.");
+                }
 
-        var seats = await _eventSeatRepository.GetByIdsAsync(
-            eventId, ids, cancellationToken);
+                var seats = await _eventSeatRepository.GetByIdsAsync(
+                    eventId, ids, ct);
 
-        if (seats.Count != ids.Count)
-        {
-            throw new NotFoundException(
-                "One or more event seats were not found.");
-        }
+                if (seats.Count != ids.Count)
+                {
+                    throw new NotFoundException(
+                        "One or more event seats were not found.");
+                }
 
-        if (seats.Any(seat => seat.Status != requiredStatus))
-        {
-            throw new ConflictException(
-                "One or more seats do not have the required status.");
-        }
+                if (seats.Any(seat => seat.Status != requiredStatus))
+                {
+                    throw new ConflictException(
+                        "One or more seats do not have the required status.");
+                }
 
-        foreach (var seat in seats)
-        {
-            seat.Status = newStatus;
-            seat.Version = Guid.NewGuid();
+                foreach (var seat in seats)
+                {
+                    seat.Status = newStatus;
+                    seat.Version = Guid.NewGuid();
 
-            _eventSeatRepository.Update(seat);
-        }
+                    _eventSeatRepository.Update(seat);
+                }
 
-        await _unitOfWork.SaveChangesAsync(
+                await _unitOfWork.SaveChangesAsync(ct);
+            },
             cancellationToken);
     }
 

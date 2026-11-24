@@ -1,4 +1,4 @@
-﻿
+
 using AutoMapper;
 using EventTicketing.Core.DTOs.Events;
 using EventTicketing.Core.Entities;
@@ -773,7 +773,7 @@ public class EventServiceIntegrationTests
 
         await TestDatabaseFactory.VerifyDatabaseAsync(connection);
 
-        await using var transaction = await connection.BeginTransactionAsync();
+        await using var transaction = await connection.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
 
         try
         {

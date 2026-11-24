@@ -41,68 +41,72 @@ public class BookingService : IBookingService
                 "A valid event seat ID is required.");
         }
 
-        var user = await _userRepository.GetByIdAsync(
-            userId, cancellationToken);
+        return await _unitOfWork.ExecuteInTransactionAsync(
+            async ct =>
+            {
+                var user = await _userRepository.GetByIdAsync(
+                    userId, ct);
 
-        if (user is null)
-        {
-            throw new NotFoundException(
-                "User not found.");
-        }
+                if (user is null)
+                {
+                    throw new NotFoundException(
+                        "User not found.");
+                }
 
-        var seat = await _eventSeatRepository
-            .GetByIdWithDetailsAsync(
-                request.EventSeatId, cancellationToken);
+                var seat = await _eventSeatRepository
+                    .GetByIdWithDetailsAsync(
+                        request.EventSeatId, ct);
 
-        if (seat is null)
-        {
-            throw new NotFoundException(
-                "Event seat not found.");
-        }
+                if (seat is null)
+                {
+                    throw new NotFoundException(
+                        "Event seat not found.");
+                }
 
-        var eventEntity = seat.Event;
-        var now = IsraelTimeHelper.UtcNow;
+                var eventEntity = seat.Event;
+                var now = IsraelTimeHelper.UtcNow;
 
-        if (eventEntity.Status != EventStatus.Active ||
-            eventEntity.StartTime <= now)
-        {
-            throw new ConflictException(
-                "Bookings are not available for this event.");
-        }
+                if (eventEntity.Status != EventStatus.Active ||
+                    eventEntity.StartTime <= now)
+                {
+                    throw new ConflictException(
+                        "Bookings are not available for this event.");
+                }
 
-        if (seat.Status != SeatStatus.Available)
-        {
-            throw new ConflictException(
-                "The selected seat is not available.");
-        }
+                if (seat.Status != SeatStatus.Available)
+                {
+                    throw new ConflictException(
+                        "The selected seat is not available.");
+                }
 
-        var booking = new Booking
-        {
-            UserId = userId,
-            EventSeatId = seat.Id,
-            EventSeat = seat,
-            BookedAt = now,
-            Status = BookingStatus.Confirmed,
-            EventStartTimeAtBooking = eventEntity.StartTime,
-            EventEndTimeAtBooking = eventEntity.EndTime
-        };
+                var booking = new Booking
+                {
+                    UserId = userId,
+                    EventSeatId = seat.Id,
+                    EventSeat = seat,
+                    BookedAt = now,
+                    Status = BookingStatus.Confirmed,
+                    EventStartTimeAtBooking = eventEntity.StartTime,
+                    EventEndTimeAtBooking = eventEntity.EndTime
+                };
 
-        seat.Status = SeatStatus.Booked;
-        seat.Version = Guid.NewGuid();
+                seat.Status = SeatStatus.Booked;
+                seat.Version = Guid.NewGuid();
 
-        await _bookingRepository.AddAsync(
-            booking, cancellationToken);
+                await _bookingRepository.AddAsync(
+                    booking, ct);
 
-        _eventSeatRepository.Update(seat);
+                _eventSeatRepository.Update(seat);
 
-        await _unitOfWork.SaveChangesAsync(
+                await _unitOfWork.SaveChangesAsync(ct);
+
+                return new BookingConfirmationResponseDto
+                {
+                    Booking = ToResponseDto(booking),
+                    Message = "Booking confirmed successfully."
+                };
+            },
             cancellationToken);
-
-        return new BookingConfirmationResponseDto
-        {
-            Booking = ToResponseDto(booking),
-            Message = "Booking confirmed successfully."
-        };
     }
 
     public async Task<BookingResponseDto> GetByIdAsync(
@@ -183,54 +187,58 @@ public class BookingService : IBookingService
                 "A valid booking ID is required.");
         }
 
-        var booking = await _bookingRepository
-            .GetByIdWithDetailsAsync(
-                bookingId, cancellationToken);
+        await _unitOfWork.ExecuteInTransactionAsync(
+            async ct =>
+            {
+                var booking = await _bookingRepository
+                    .GetByIdWithDetailsAsync(
+                        bookingId, ct);
 
-        if (booking is null || booking.UserId != userId)
-        {
-            throw new NotFoundException(
-                "Booking not found.");
-        }
+                if (booking is null || booking.UserId != userId)
+                {
+                    throw new NotFoundException(
+                        "Booking not found.");
+                }
 
-        if (booking.Status != BookingStatus.Confirmed)
-        {
-            throw new ConflictException(
-                "Only confirmed bookings can be cancelled.");
-        }
+                if (booking.Status != BookingStatus.Confirmed)
+                {
+                    throw new ConflictException(
+                        "Only confirmed bookings can be cancelled.");
+                }
 
-        var seat = booking.EventSeat;
-        var eventEntity = seat.Event;
-        var now = IsraelTimeHelper.UtcNow;
+                var seat = booking.EventSeat;
+                var eventEntity = seat.Event;
+                var now = IsraelTimeHelper.UtcNow;
 
-        if (eventEntity.Status != EventStatus.Active)
-        {
-            throw new ConflictException(
-                "The event is not active.");
-        }
+                if (eventEntity.Status != EventStatus.Active)
+                {
+                    throw new ConflictException(
+                        "The event is not active.");
+                }
 
-        if (now >= eventEntity.StartTime.AddHours(-1))
-        {
-            throw new ConflictException(
-                "The booking cancellation deadline has passed.");
-        }
+                if (now >= eventEntity.StartTime.AddHours(-1))
+                {
+                    throw new ConflictException(
+                        "The booking cancellation deadline has passed.");
+                }
 
-        if (seat.Status != SeatStatus.Booked)
-        {
-            throw new ConflictException(
-                "Booking and seat status are inconsistent.");
-        }
+                if (seat.Status != SeatStatus.Booked)
+                {
+                    throw new ConflictException(
+                        "Booking and seat status are inconsistent.");
+                }
 
-        booking.Status = BookingStatus.Deleted;
-        booking.DeletedAt = now;
+                booking.Status = BookingStatus.Deleted;
+                booking.DeletedAt = now;
 
-        seat.Status = SeatStatus.Available;
-        seat.Version = Guid.NewGuid();
+                seat.Status = SeatStatus.Available;
+                seat.Version = Guid.NewGuid();
 
-        _bookingRepository.Update(booking);
-        _eventSeatRepository.Update(seat);
+                _bookingRepository.Update(booking);
+                _eventSeatRepository.Update(seat);
 
-        await _unitOfWork.SaveChangesAsync(
+                await _unitOfWork.SaveChangesAsync(ct);
+            },
             cancellationToken);
     }
 

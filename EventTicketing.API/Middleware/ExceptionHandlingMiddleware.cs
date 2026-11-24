@@ -1,6 +1,7 @@
 ﻿using EventTicketing.Core.Exceptions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace EventTicketing.API.Middleware;
 
@@ -60,6 +61,12 @@ public sealed class ExceptionHandlingMiddleware
                 detail = "The requested data was modified by another operation. Please try again.";
                 break;
 
+            case Exception ex when IsTransactionConflict(ex):
+                statusCode = StatusCodes.Status409Conflict;
+                title = "Transaction Conflict";
+                detail = "The requested operation conflicts with another operation. Please try again.";
+                break;
+
             case ConflictException:
                 statusCode = StatusCodes.Status409Conflict;
                 title = "Conflict";
@@ -99,7 +106,7 @@ public sealed class ExceptionHandlingMiddleware
                 "Request failed. StatusCode: {StatusCode}, Path: {Path}, Error: {Error}",
                 statusCode,
                 context.Request.Path,
-                exception.Message);
+                detail);
         }
 
         var problem = new ProblemDetails
@@ -118,5 +125,24 @@ public sealed class ExceptionHandlingMiddleware
             options: null,
             contentType: "application/problem+json",
             cancellationToken: context.RequestAborted);
+    }
+
+    private static bool IsTransactionConflict(
+        Exception exception)
+    {
+        for (Exception? current = exception;
+             current is not null;
+             current = current.InnerException)
+        {
+            if (current is PostgresException postgresException &&
+                postgresException.SqlState is
+                    PostgresErrorCodes.SerializationFailure or
+                    PostgresErrorCodes.DeadlockDetected)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
