@@ -128,6 +128,10 @@ await AdminSeeder.SeedAsync(
     app.Services,
     app.Configuration);
 
+await DemoDataSeeder.SeedAsync(
+    app.Services,
+    app.Configuration);
+
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseMiddleware<CorrelationIdMiddleware>();
 
