@@ -17,6 +17,8 @@ public sealed class CorrelationIdMiddleware
     {
         var correlationId = context.TraceIdentifier;
 
+        context.Items["CorrelationId"] = correlationId;
+
         context.Response.OnStarting(() =>
         {
             context.Response.Headers["X-Correlation-ID"] =
