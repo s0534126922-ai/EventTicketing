@@ -1,5 +1,4 @@
-﻿
-using AutoMapper;
+﻿using AutoMapper;
 using EventTicketing.Core.DTOs.Halls;
 using EventTicketing.Core.Entities;
 using EventTicketing.Core.Exceptions;
@@ -38,7 +37,7 @@ public class HallService : IHallService
         int id,
         CancellationToken cancellationToken = default)
     {
-        var hall = await _hallRepository.GetByIdAsync(
+        var hall = await _hallRepository.GetByIdReadOnlyAsync(
             id, cancellationToken);
 
         if (hall is null)

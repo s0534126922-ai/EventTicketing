@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-using EventTicketing.Core.Entities;
+﻿using EventTicketing.Core.Entities;
 
 namespace EventTicketing.Core.Interfaces.Repositories;
 
@@ -12,6 +8,10 @@ public interface IHallRepository
         CancellationToken cancellationToken = default);
 
     Task<Hall?> GetByIdAsync(
+        int id,
+        CancellationToken cancellationToken = default);
+
+    Task<Hall?> GetByIdReadOnlyAsync(
         int id,
         CancellationToken cancellationToken = default);
 

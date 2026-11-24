@@ -1,5 +1,4 @@
-﻿
-using EventTicketing.Core.DTOs.EventSeats;
+﻿using EventTicketing.Core.DTOs.EventSeats;
 using EventTicketing.Core.Entities;
 using EventTicketing.Core.Enums;
 using EventTicketing.Core.Exceptions;
@@ -33,7 +32,7 @@ public class EventSeatService : IEventSeatService
             CancellationToken cancellationToken = default)
     {
         var eventEntity = await GetEventAsync(
-            eventId, cancellationToken);
+            eventId, cancellationToken, readOnly: true);
 
         if (!isAdmin &&
             (eventEntity.Status != EventStatus.Active ||
@@ -142,7 +141,8 @@ public class EventSeatService : IEventSeatService
 
     private async Task<Event> GetEventAsync(
         int eventId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool readOnly = false)
     {
         if (eventId <= 0)
         {
@@ -150,8 +150,10 @@ public class EventSeatService : IEventSeatService
                 "A valid event ID is required.");
         }
 
-        var eventEntity = await _eventRepository
-            .GetByIdWithDetailsAsync(
+        var eventEntity = readOnly
+            ? await _eventRepository.GetByIdWithDetailsReadOnlyAsync(
+                eventId, cancellationToken)
+            : await _eventRepository.GetByIdWithDetailsAsync(
                 eventId, cancellationToken);
 
         if (eventEntity is null)

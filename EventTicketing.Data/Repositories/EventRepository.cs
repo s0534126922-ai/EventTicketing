@@ -1,5 +1,4 @@
-﻿
-using EventTicketing.Core.Entities;
+﻿using EventTicketing.Core.Entities;
 using EventTicketing.Core.Enums;
 using EventTicketing.Core.Interfaces.Repositories;
 using EventTicketing.Data.Context;
@@ -26,11 +25,35 @@ public class EventRepository : IEventRepository
                 cancellationToken);
     }
 
-    public async Task<Event?> GetByIdWithDetailsAsync(
+    public Task<Event?> GetByIdWithDetailsAsync(
         int id,
         CancellationToken cancellationToken = default)
     {
-        return await _context.Events
+        return GetByIdWithDetailsInternalAsync(
+            id, true, cancellationToken);
+    }
+
+    public Task<Event?> GetByIdWithDetailsReadOnlyAsync(
+        int id,
+        CancellationToken cancellationToken = default)
+    {
+        return GetByIdWithDetailsInternalAsync(
+            id, false, cancellationToken);
+    }
+
+    private async Task<Event?> GetByIdWithDetailsInternalAsync(
+        int id,
+        bool tracking,
+        CancellationToken cancellationToken)
+    {
+        IQueryable<Event> query = _context.Events;
+
+        if (!tracking)
+        {
+            query = query.AsNoTracking();
+        }
+
+        return await query
             .Include(eventEntity => eventEntity.Hall)
             .Include(eventEntity => eventEntity.EventSeats)
                 .ThenInclude(eventSeat => eventSeat.Seat)

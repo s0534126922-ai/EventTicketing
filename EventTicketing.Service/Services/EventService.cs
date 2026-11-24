@@ -1,5 +1,4 @@
-﻿
-using AutoMapper;
+﻿using AutoMapper;
 using EventTicketing.Core.DTOs.Events;
 using EventTicketing.Core.Entities;
 using EventTicketing.Core.Enums;
@@ -95,8 +94,8 @@ public class EventService : IEventService
             IsraelTimeHelper.UtcNow,
             cancellationToken);
 
-        var eventEntity =
-            await GetEventAsync(id, cancellationToken);
+        var eventEntity = await GetEventAsync(
+            id, cancellationToken, readOnly: true);
 
         if (!isAdmin &&
             (eventEntity.Status != EventStatus.Active ||
@@ -375,10 +374,13 @@ public class EventService : IEventService
 
     private async Task<Event> GetEventAsync(
         int id,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool readOnly = false)
     {
-        var eventEntity =
-            await _eventRepository.GetByIdWithDetailsAsync(
+        var eventEntity = readOnly
+            ? await _eventRepository.GetByIdWithDetailsReadOnlyAsync(
+                id, cancellationToken)
+            : await _eventRepository.GetByIdWithDetailsAsync(
                 id, cancellationToken);
 
         if (eventEntity is null)

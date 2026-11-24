@@ -93,6 +93,8 @@ namespace EventTicketing.Data.Migrations
 
                     b.HasIndex("HallId", "StartTime");
 
+                    b.HasIndex("Status", "StartTime");
+
                     b.ToTable("Events");
                 });
 

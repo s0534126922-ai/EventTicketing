@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-using EventTicketing.Core.Entities;
+﻿using EventTicketing.Core.Entities;
 using EventTicketing.Core.Enums;
 
 namespace EventTicketing.Core.Interfaces.Repositories;
@@ -14,6 +10,10 @@ public interface IEventRepository
         CancellationToken cancellationToken = default);
 
     Task<Event?> GetByIdWithDetailsAsync(
+        int id,
+        CancellationToken cancellationToken = default);
+
+    Task<Event?> GetByIdWithDetailsReadOnlyAsync(
         int id,
         CancellationToken cancellationToken = default);
 

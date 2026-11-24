@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-
-using EventTicketing.Core.Entities;
+﻿using EventTicketing.Core.Entities;
 using EventTicketing.Core.Interfaces.Repositories;
 using EventTicketing.Data.Context;
 using Microsoft.EntityFrameworkCore;
@@ -24,6 +19,7 @@ public class UserRepository : IUserRepository
         CancellationToken cancellationToken = default)
     {
         return await _context.Users
+            .AsNoTracking()
             .FirstOrDefaultAsync(
                 user => user.Id == id,
                 cancellationToken);
@@ -34,6 +30,7 @@ public class UserRepository : IUserRepository
         CancellationToken cancellationToken = default)
     {
         return await _context.Users
+            .AsNoTracking()
             .FirstOrDefaultAsync(
                 user => user.Email == email,
                 cancellationToken);

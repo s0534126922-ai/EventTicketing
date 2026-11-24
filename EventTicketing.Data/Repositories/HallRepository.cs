@@ -1,7 +1,5 @@
-﻿
-using EventTicketing.Core.Entities;
+﻿using EventTicketing.Core.Entities;
 using EventTicketing.Core.Interfaces.Repositories;
-using EventTicketing.Data;
 using EventTicketing.Data.Context;
 using Microsoft.EntityFrameworkCore;
 
@@ -25,14 +23,37 @@ public class HallRepository : IHallRepository
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<Hall?> GetByIdAsync(
+    public Task<Hall?> GetByIdAsync(
         int id,
         CancellationToken cancellationToken = default)
     {
-        return await _context.Halls
-            .FirstOrDefaultAsync(
-                h => h.Id == id,
-                cancellationToken);
+        return GetByIdInternalAsync(
+            id, true, cancellationToken);
+    }
+
+    public Task<Hall?> GetByIdReadOnlyAsync(
+        int id,
+        CancellationToken cancellationToken = default)
+    {
+        return GetByIdInternalAsync(
+            id, false, cancellationToken);
+    }
+
+    private async Task<Hall?> GetByIdInternalAsync(
+        int id,
+        bool tracking,
+        CancellationToken cancellationToken)
+    {
+        IQueryable<Hall> query = _context.Halls;
+
+        if (!tracking)
+        {
+            query = query.AsNoTracking();
+        }
+
+        return await query.FirstOrDefaultAsync(
+            h => h.Id == id,
+            cancellationToken);
     }
 
     public async Task<Hall?> GetByIdWithSeatsAsync(

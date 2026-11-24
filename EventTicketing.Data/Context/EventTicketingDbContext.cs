@@ -1,9 +1,5 @@
 ﻿using EventTicketing.Core.Entities;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Reflection.Emit;
-using System.Text;
 
 namespace EventTicketing.Data.Context;
 
@@ -119,6 +115,12 @@ public class EventTicketingDbContext : DbContext
             entity.HasIndex(x => new
             {
                 x.HallId,
+                x.StartTime
+            });
+
+            entity.HasIndex(x => new
+            {
+                x.Status,
                 x.StartTime
             });
         });
