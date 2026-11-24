@@ -1,5 +1,4 @@
-﻿
-using EventTicketing.Core.Exceptions;
+﻿using EventTicketing.Core.Exceptions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -43,30 +42,51 @@ public sealed class ExceptionHandlingMiddleware
         HttpContext context,
         Exception exception)
     {
-        var statusCode = exception switch
+        int statusCode;
+        string title;
+        string detail;
+
+        switch (exception)
         {
-            EventTicketing.Core.Exceptions.ValidationException =>
-                StatusCodes.Status400BadRequest,
+            case ValidationException:
+                statusCode = StatusCodes.Status400BadRequest;
+                title = "Validation Error";
+                detail = exception.Message;
+                break;
 
-            DbUpdateConcurrencyException =>
-                StatusCodes.Status409Conflict,
+            case DbUpdateConcurrencyException:
+                statusCode = StatusCodes.Status409Conflict;
+                title = "Concurrency Conflict";
+                detail = "The requested data was modified by another operation. Please try again.";
+                break;
 
-            ConflictException =>
-                StatusCodes.Status409Conflict,
+            case ConflictException:
+                statusCode = StatusCodes.Status409Conflict;
+                title = "Conflict";
+                detail = exception.Message;
+                break;
 
-            NotFoundException =>
-                StatusCodes.Status404NotFound,
+            case NotFoundException:
+            case KeyNotFoundException:
+                statusCode = StatusCodes.Status404NotFound;
+                title = "Not Found";
+                detail = exception.Message;
+                break;
 
-            KeyNotFoundException =>
-                StatusCodes.Status404NotFound,
+            case UnauthorizedAccessException:
+                statusCode = StatusCodes.Status401Unauthorized;
+                title = "Unauthorized";
+                detail = exception.Message;
+                break;
 
-            UnauthorizedAccessException =>
-                StatusCodes.Status401Unauthorized,
+            default:
+                statusCode = StatusCodes.Status500InternalServerError;
+                title = "Internal Server Error";
+                detail = "An unexpected error occurred.";
+                break;
+        }
 
-            _ => StatusCodes.Status500InternalServerError
-        };
-
-        if (statusCode >= 500)
+        if (statusCode >= StatusCodes.Status500InternalServerError)
         {
             _logger.LogError(
                 exception,
@@ -85,36 +105,18 @@ public sealed class ExceptionHandlingMiddleware
         var problem = new ProblemDetails
         {
             Status = statusCode,
-
-            Title = statusCode switch
-            {
-                400 => "Bad Request",
-                401 => "Unauthorized",
-                404 => "Not Found",
-                409 => "Conflict",
-                _ => "Internal Server Error"
-            },
-
-            Detail = exception switch
-            {
-                DbUpdateConcurrencyException =>
-                    "The requested resource was modified by another operation. Please refresh and try again.",
-
-                _ when statusCode >= 500 =>
-                    "An unexpected error occurred.",
-
-                _ => exception.Message
-            },
-
+            Title = title,
+            Detail = detail,
             Instance = context.Request.Path
         };
 
         context.Response.Clear();
         context.Response.StatusCode = statusCode;
-        context.Response.ContentType = "application/problem+json";
 
         await context.Response.WriteAsJsonAsync(
             problem,
+            options: null,
+            contentType: "application/problem+json",
             cancellationToken: context.RequestAborted);
     }
 }
