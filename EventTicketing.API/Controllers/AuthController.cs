@@ -1,5 +1,4 @@
-﻿
-using EventTicketing.Core.DTOs.Auth;
+﻿using EventTicketing.Core.DTOs.Auth;
 using EventTicketing.Core.Interfaces.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -22,6 +21,8 @@ public class AuthController : ControllerBase
     [ProducesResponseType(
         typeof(AuthResponseDto),
         StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult<AuthResponseDto>> Register(
         [FromBody] RegisterRequestDto request,
         CancellationToken cancellationToken)
@@ -38,26 +39,16 @@ public class AuthController : ControllerBase
     [ProducesResponseType(
         typeof(AuthResponseDto),
         StatusCodes.Status200OK)]
-    [ProducesResponseType(
-        StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<AuthResponseDto>> Login(
         [FromBody] LoginRequestDto request,
         CancellationToken cancellationToken)
     {
-        try
-        {
-            var response = await _authService.LoginAsync(
-                request,
-                cancellationToken);
+        var response = await _authService.LoginAsync(
+            request,
+            cancellationToken);
 
-            return Ok(response);
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return Unauthorized(new
-            {
-                Message = "Invalid email or password."
-            });
-        }
+        return Ok(response);
     }
 }

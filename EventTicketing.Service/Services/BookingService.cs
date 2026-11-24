@@ -1,5 +1,4 @@
-﻿
-using EventTicketing.Core.DTOs.Bookings;
+﻿using EventTicketing.Core.DTOs.Bookings;
 using EventTicketing.Core.Entities;
 using EventTicketing.Core.Enums;
 using EventTicketing.Core.Exceptions;
@@ -104,6 +103,34 @@ public class BookingService : IBookingService
             Booking = ToResponseDto(booking),
             Message = "Booking confirmed successfully."
         };
+    }
+
+    public async Task<BookingResponseDto> GetByIdAsync(
+        int bookingId,
+        int userId,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateUserId(userId);
+
+        if (bookingId <= 0)
+        {
+            throw new ValidationException(
+                "A valid booking ID is required.");
+        }
+
+        var booking = await _bookingRepository
+            .GetByIdForUserReadOnlyAsync(
+                bookingId,
+                userId,
+                cancellationToken);
+
+        if (booking is null)
+        {
+            throw new NotFoundException(
+                "Booking not found.");
+        }
+
+        return ToResponseDto(booking);
     }
 
     public async Task<UserBookingsResponseDto> GetByUserIdAsync(

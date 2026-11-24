@@ -1,5 +1,4 @@
-﻿
-using EventTicketing.Core.DTOs.EventSeats;
+﻿using EventTicketing.Core.DTOs.EventSeats;
 using EventTicketing.Core.Interfaces.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -23,9 +22,11 @@ public class EventSeatsController : ControllerBase
     [ProducesResponseType(
         typeof(IReadOnlyList<EventSeatResponseDto>),
         StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<IReadOnlyList<EventSeatResponseDto>>>
         GetByEventId(
-            int eventId,
+            [FromRoute] int eventId,
             CancellationToken cancellationToken)
     {
         var isAdmin = User.IsInRole("Admin");
@@ -38,11 +39,16 @@ public class EventSeatsController : ControllerBase
         return Ok(seats);
     }
 
-    [HttpPost("reserve")]
+    [HttpPost("reservations")]
     [Authorize(Roles = "Admin")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Reserve(
-        int eventId,
+        [FromRoute] int eventId,
         [FromBody] AdminSeatReservationRequestDto request,
         CancellationToken cancellationToken)
     {
@@ -54,11 +60,16 @@ public class EventSeatsController : ControllerBase
         return NoContent();
     }
 
-    [HttpPost("release")]
+    [HttpPatch("reservations")]
     [Authorize(Roles = "Admin")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Release(
-        int eventId,
+        [FromRoute] int eventId,
         [FromBody] AdminSeatReservationRequestDto request,
         CancellationToken cancellationToken)
     {

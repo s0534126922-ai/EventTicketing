@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-
-using EventTicketing.Core.Entities;
+﻿using EventTicketing.Core.Entities;
 using EventTicketing.Core.Enums;
 using EventTicketing.Core.Interfaces.Repositories;
 using EventTicketing.Data.Context;
@@ -34,15 +29,22 @@ public class BookingRepository : IBookingRepository
         int id,
         CancellationToken cancellationToken = default)
     {
-        return await _context.Bookings
-            .Include(booking => booking.EventSeat)
-                .ThenInclude(eventSeat => eventSeat.Seat)
-            .Include(booking => booking.EventSeat)
-                .ThenInclude(eventSeat => eventSeat.Event)
-                    .ThenInclude(eventEntity => eventEntity.Hall)
-            .AsSplitQuery()
+        return await QueryWithDetails()
             .FirstOrDefaultAsync(
                 booking => booking.Id == id,
+                cancellationToken);
+    }
+
+    public async Task<Booking?> GetByIdForUserReadOnlyAsync(
+        int id,
+        int userId,
+        CancellationToken cancellationToken = default)
+    {
+        return await QueryWithDetails()
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                booking => booking.Id == id &&
+                           booking.UserId == userId,
                 cancellationToken);
     }
 
@@ -50,19 +52,13 @@ public class BookingRepository : IBookingRepository
         int userId,
         CancellationToken cancellationToken = default)
     {
-        return await _context.Bookings
+        return await QueryWithDetails()
             .AsNoTracking()
             .Where(booking => booking.UserId == userId)
-            .Include(booking => booking.EventSeat)
-                .ThenInclude(eventSeat => eventSeat.Seat)
-            .Include(booking => booking.EventSeat)
-                .ThenInclude(eventSeat => eventSeat.Event)
-                    .ThenInclude(eventEntity => eventEntity.Hall)
             .OrderByDescending(booking =>
                 booking.EventStartTimeAtBooking)
             .ThenBy(booking =>
                 booking.EventSeat.Seat.SeatNumber)
-            .AsSplitQuery()
             .ToListAsync(cancellationToken);
     }
 
@@ -99,5 +95,16 @@ public class BookingRepository : IBookingRepository
     public void Update(Booking booking)
     {
         _context.Bookings.Update(booking);
+    }
+
+    private IQueryable<Booking> QueryWithDetails()
+    {
+        return _context.Bookings
+            .Include(booking => booking.EventSeat)
+                .ThenInclude(eventSeat => eventSeat.Seat)
+            .Include(booking => booking.EventSeat)
+                .ThenInclude(eventSeat => eventSeat.Event)
+                    .ThenInclude(eventEntity => eventEntity.Hall)
+            .AsSplitQuery();
     }
 }

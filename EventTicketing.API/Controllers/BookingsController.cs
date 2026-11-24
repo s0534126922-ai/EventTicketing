@@ -1,5 +1,4 @@
-﻿
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using EventTicketing.Core.DTOs.Bookings;
 using EventTicketing.Core.Interfaces.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -10,6 +9,8 @@ namespace EventTicketing.API.Controllers;
 [ApiController]
 [Route("api/bookings")]
 [Authorize(Roles = "User")]
+[ProducesResponseType(StatusCodes.Status401Unauthorized)]
+[ProducesResponseType(StatusCodes.Status403Forbidden)]
 public class BookingsController : ControllerBase
 {
     private readonly IBookingService _bookingService;
@@ -24,6 +25,9 @@ public class BookingsController : ControllerBase
     [ProducesResponseType(
         typeof(BookingConfirmationResponseDto),
         StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult<BookingConfirmationResponseDto>>
         Create(
             [FromBody] CreateBookingRequestDto request,
@@ -36,9 +40,30 @@ public class BookingsController : ControllerBase
             request,
             cancellationToken);
 
-        return StatusCode(
-            StatusCodes.Status201Created,
+        return CreatedAtAction(
+            nameof(GetById),
+            new { bookingId = confirmation.Booking.Id },
             confirmation);
+    }
+
+    [HttpGet("{bookingId:int}")]
+    [ProducesResponseType(
+        typeof(BookingResponseDto),
+        StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<BookingResponseDto>> GetById(
+        [FromRoute] int bookingId,
+        CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+
+        var booking = await _bookingService.GetByIdAsync(
+            bookingId,
+            userId,
+            cancellationToken);
+
+        return Ok(booking);
     }
 
     [HttpGet("my")]
@@ -58,10 +83,13 @@ public class BookingsController : ControllerBase
         return Ok(bookings);
     }
 
-    [HttpPost("{bookingId:int}/cancel")]
+    [HttpDelete("{bookingId:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Cancel(
-        int bookingId,
+        [FromRoute] int bookingId,
         CancellationToken cancellationToken)
     {
         var userId = GetCurrentUserId();

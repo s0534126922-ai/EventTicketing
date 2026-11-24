@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-using EventTicketing.Core.Entities;
+﻿using EventTicketing.Core.Entities;
 
 namespace EventTicketing.Core.Interfaces.Repositories;
 
@@ -14,6 +10,11 @@ public interface IBookingRepository
 
     Task<Booking?> GetByIdWithDetailsAsync(
         int id,
+        CancellationToken cancellationToken = default);
+
+    Task<Booking?> GetByIdForUserReadOnlyAsync(
+        int id,
+        int userId,
         CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<Booking>> GetByUserIdAsync(

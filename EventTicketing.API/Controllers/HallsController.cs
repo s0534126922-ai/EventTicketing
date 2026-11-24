@@ -1,5 +1,4 @@
-﻿
-using EventTicketing.Core.DTOs.Halls;
+﻿using EventTicketing.Core.DTOs.Halls;
 using EventTicketing.Core.Interfaces.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -9,6 +8,8 @@ namespace EventTicketing.API.Controllers;
 [ApiController]
 [Route("api/halls")]
 [Authorize(Roles = "Admin")]
+[ProducesResponseType(StatusCodes.Status401Unauthorized)]
+[ProducesResponseType(StatusCodes.Status403Forbidden)]
 public class HallsController : ControllerBase
 {
     private readonly IHallService _hallService;
@@ -25,7 +26,8 @@ public class HallsController : ControllerBase
     public async Task<ActionResult<IReadOnlyList<HallResponseDto>>> GetAll(
         CancellationToken cancellationToken)
     {
-        var halls = await _hallService.GetAllAsync(cancellationToken);
+        var halls = await _hallService.GetAllAsync(
+            cancellationToken);
 
         return Ok(halls);
     }
@@ -34,8 +36,9 @@ public class HallsController : ControllerBase
     [ProducesResponseType(
         typeof(HallResponseDto),
         StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<HallResponseDto>> GetById(
-        int id,
+        [FromRoute] int id,
         CancellationToken cancellationToken)
     {
         var hall = await _hallService.GetByIdAsync(
@@ -49,6 +52,7 @@ public class HallsController : ControllerBase
     [ProducesResponseType(
         typeof(HallResponseDto),
         StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<HallResponseDto>> Create(
         [FromBody] CreateHallRequestDto request,
         CancellationToken cancellationToken)
@@ -65,8 +69,10 @@ public class HallsController : ControllerBase
 
     [HttpPut("{id:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Update(
-        int id,
+        [FromRoute] int id,
         [FromBody] UpdateHallRequestDto request,
         CancellationToken cancellationToken)
     {
@@ -80,8 +86,10 @@ public class HallsController : ControllerBase
 
     [HttpDelete("{id:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Delete(
-        int id,
+        [FromRoute] int id,
         CancellationToken cancellationToken)
     {
         await _hallService.DeleteAsync(

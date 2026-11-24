@@ -1,6 +1,4 @@
-﻿
-using System.Security.Claims;
-using EventTicketing.Core.DTOs.Events;
+﻿using EventTicketing.Core.DTOs.Events;
 using EventTicketing.Core.Interfaces.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -23,6 +21,7 @@ public class EventsController : ControllerBase
     [ProducesResponseType(
         typeof(PagedEventsResponseDto),
         StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<PagedEventsResponseDto>> Search(
         [FromQuery] EventSearchRequestDto request,
         CancellationToken cancellationToken)
@@ -42,8 +41,9 @@ public class EventsController : ControllerBase
     [ProducesResponseType(
         typeof(EventResponseDto),
         StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<EventResponseDto>> GetById(
-        int id,
+        [FromRoute] int id,
         CancellationToken cancellationToken)
     {
         var isAdmin = User.IsInRole("Admin");
@@ -61,6 +61,11 @@ public class EventsController : ControllerBase
     [ProducesResponseType(
         typeof(EventResponseDto),
         StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult<EventResponseDto>> Create(
         [FromBody] CreateEventRequestDto request,
         CancellationToken cancellationToken)
@@ -78,8 +83,13 @@ public class EventsController : ControllerBase
     [HttpPut("{id:int}")]
     [Authorize(Roles = "Admin")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Update(
-        int id,
+        [FromRoute] int id,
         [FromBody] UpdateEventRequestDto request,
         CancellationToken cancellationToken)
     {
@@ -91,11 +101,15 @@ public class EventsController : ControllerBase
         return NoContent();
     }
 
-    [HttpPost("{id:int}/cancel")]
+    [HttpDelete("{id:int}")]
     [Authorize(Roles = "Admin")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Cancel(
-        int id,
+        [FromRoute] int id,
         CancellationToken cancellationToken)
     {
         await _eventService.CancelAsync(
@@ -105,11 +119,15 @@ public class EventsController : ControllerBase
         return NoContent();
     }
 
-    [HttpPost("{id:int}/restore")]
+    [HttpPatch("{id:int}/status")]
     [Authorize(Roles = "Admin")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Restore(
-        int id,
+        [FromRoute] int id,
         CancellationToken cancellationToken)
     {
         await _eventService.RestoreAsync(
