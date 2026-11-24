@@ -29,8 +29,8 @@ public sealed class ExceptionHandlingMiddleware
             if (context.Response.HasStarted)
             {
                 _logger.LogError(
-                    exception,
-                    "An exception occurred after the response started.");
+                    "An exception occurred after the response started. ExceptionType: {ExceptionType}",
+                    exception.GetType().Name);
 
                 throw;
             }
@@ -93,20 +93,23 @@ public sealed class ExceptionHandlingMiddleware
                 break;
         }
 
-        if (statusCode >= StatusCodes.Status500InternalServerError)
+        if (statusCode == StatusCodes.Status409Conflict)
         {
-            _logger.LogError(
-                exception,
-                "Unhandled exception. Path: {Path}",
-                context.Request.Path);
+            _logger.LogWarning(
+                "Resource conflict. StatusCode: {StatusCode}, Path: {Path}, ExceptionType: {ExceptionType}, CorrelationId: {CorrelationId}",
+                statusCode,
+                context.Request.Path,
+                exception.GetType().Name,
+                context.TraceIdentifier);
         }
         else
         {
-            _logger.LogWarning(
-                "Request failed. StatusCode: {StatusCode}, Path: {Path}, Error: {Error}",
+            _logger.LogError(
+                "Request exception. StatusCode: {StatusCode}, Path: {Path}, ExceptionType: {ExceptionType}, CorrelationId: {CorrelationId}",
                 statusCode,
                 context.Request.Path,
-                detail);
+                exception.GetType().Name,
+                context.TraceIdentifier);
         }
 
         var problem = new ProblemDetails
