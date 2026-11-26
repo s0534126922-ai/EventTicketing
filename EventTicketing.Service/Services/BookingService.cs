@@ -174,6 +174,33 @@ public class BookingService : IBookingService
         };
     }
 
+    public async Task<IReadOnlyList<AdminBookingResponseDto>>
+        GetEventBookingsAsync(
+            int eventId,
+            CancellationToken cancellationToken = default)
+    {
+        if (eventId <= 0)
+        {
+            throw new ValidationException("A valid event ID is required.");
+        }
+
+        var bookings = await _bookingRepository.GetEventBookingsReadOnlyAsync(
+            eventId,
+            cancellationToken);
+
+        if (bookings is null)
+        {
+            throw new NotFoundException("Event not found.");
+        }
+
+        return bookings.Select(booking => new AdminBookingResponseDto
+        {
+            Booking = ToResponseDto(booking),
+            UserName = booking.User.FullName,
+            UserEmail = booking.User.Email
+        }).ToList();
+    }
+
     public async Task CancelAsync(
         int bookingId,
         int userId,

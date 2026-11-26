@@ -49,7 +49,9 @@ public class EventSeatService : IEventSeatService
         {
             Id = seat.Id,
             SeatNumber = seat.Seat.SeatNumber,
-            Status = seat.Status
+            Status = !isAdmin && seat.Status == SeatStatus.ReservedByAdmin
+                ? SeatStatus.Booked
+                : seat.Status
         }).ToList();
     }
 

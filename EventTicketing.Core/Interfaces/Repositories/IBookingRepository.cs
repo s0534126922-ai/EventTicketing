@@ -29,6 +29,10 @@ public interface IBookingRepository
         int eventId,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<Booking>?> GetEventBookingsReadOnlyAsync(
+        int eventId,
+        CancellationToken cancellationToken = default);
+
     Task AddAsync(
         Booking booking,
         CancellationToken cancellationToken = default);

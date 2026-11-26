@@ -192,6 +192,7 @@ Serialization Failure או Deadlock,
 | POST | /api/bookings | Create booking |
 | GET | /api/bookings/{bookingId} | Get personal booking |
 | GET | /api/bookings/my | Get personal booking history |
+| GET | /api/events/{eventId}/bookings | View event bookings and attendee details (Admin) |
 | DELETE | /api/bookings/{bookingId} | Cancel booking |
 
 ### Halls
@@ -271,7 +272,7 @@ dotnet tool install --global dotnet-ef --version 10.0.15
 
 ### 4. Configure database and JWT
 
-יש ליצור מסד נתונים מקומי בשם eventticketing.
+יש להפעיל PostgreSQL מקומי ולהשתמש בתפקיד שמורשה ליצור את מסד הנתונים eventticketing.
 
 יש להחליף את הערכים המסומנים בסוגריים משולשים
 בערכים המתאימים לסביבה המקומית.
@@ -295,30 +296,26 @@ dotnet user-secrets set "Jwt:Audience" "EventTicketing.Client" --project EventTi
 ```powershell
 dotnet user-secrets set "SeedAdmin:Name" "Demo Admin" --project EventTicketing.API
 dotnet user-secrets set "SeedAdmin:Email" "admin@example.com" --project EventTicketing.API
-dotnet user-secrets set "SeedAdmin:Password" "LocalAdmin2026!" --project EventTicketing.API
+dotnet user-secrets set "SeedAdmin:Password" "<LOCAL_DEMO_ADMIN_PASSWORD>" --project EventTicketing.API
 dotnet user-secrets set "SeedDemo:Enabled" "true" --project EventTicketing.API
 dotnet user-secrets set "SeedDemo:Name" "Demo User" --project EventTicketing.API
 dotnet user-secrets set "SeedDemo:Email" "user@example.com" --project EventTicketing.API
-dotnet user-secrets set "SeedDemo:Password" "LocalUser2026!" --project EventTicketing.API
+dotnet user-secrets set "SeedDemo:Password" "<LOCAL_DEMO_USER_PASSWORD>" --project EventTicketing.API
 ```
 
 ### Local Demo Credentials
 
 | Role | Email | Password |
 |---|---|---|
-| Admin | admin@example.com | LocalAdmin2026! |
-| User | user@example.com | LocalUser2026! |
+| Admin | admin@example.com | <LOCAL_DEMO_ADMIN_PASSWORD> |
+| User | user@example.com | <LOCAL_DEMO_USER_PASSWORD> |
 
-פרטים אלו הם דוגמה להגדרת משתמשים מקומיים בלבד.
+בחרו סיסמה חזקה ונפרדת לכל חשבון והגדירו אותה ב־User Secrets. פרטים אלו מיועדים להדגמה מקומית בלבד.
 אין להשתמש בהם בסביבת ייצור.
 
-### 6. Apply migrations
+### 6. Run application
 
-```powershell
-dotnet ef database update --project EventTicketing.Data --startup-project EventTicketing.API
-```
-
-### 7. Run application
+בסביבת Development השרת מחיל את המיגרציות ומריץ Seed בזמן האתחול.
 
 ```powershell
 dotnet run --project EventTicketing.API
@@ -408,4 +405,15 @@ Latest verified test result:
 - Database: Neon PostgreSQL.
 - Frontend: Render Static Site with HTML, CSS and JavaScript.
 
-הפריסה בענן וחיבור צד הלקוח יושלמו בשלבים הבאים.
+השרת נבנה מ־Dockerfile שבשורש המאגר ומאזין בפורט 10000.
+ב־Render יש להגדיר את המשתנים הבאים בהגדרות ה־Web Service.
+
+| משתנה | ערך |
+|---|---|
+| `ConnectionStrings__DefaultConnection` | חיבור Npgsql מאובטח ל־Neon |
+| `Jwt__Key` | מפתח אקראי סודי באורך 32 בתים לפחות |
+| `Cors__AllowedOrigins__0` | כתובת ה־HTTPS של הקליינט, ללא נתיב |
+| `Database__ApplyMigrationsOnStartup` | `true` להחלת מיגרציות בזמן האתחול |
+| `Swagger__Enabled` | `true` להפעלת Swagger בנתיב `/swagger/index.html` |
+
+במסד שכבר מכיל משתמשים, השתמשו בחשבונות הקיימים. בקונפיגורציה של הענן אין להשתמש בסיסמאות ההדגמה המקומיות.

@@ -154,6 +154,16 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
+if (app.Configuration.GetValue<bool>("Database:ApplyMigrationsOnStartup"))
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    var dbContext = scope.ServiceProvider
+        .GetRequiredService<EventTicketingDbContext>();
+
+    await dbContext.Database.MigrateAsync(
+        app.Lifetime.ApplicationStopping);
+}
+
 await AdminSeeder.SeedAsync(
     app.Services,
     app.Configuration);
@@ -165,7 +175,8 @@ await DemoDataSeeder.SeedAsync(
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseMiddleware<CorrelationIdMiddleware>();
 
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment() ||
+    app.Configuration.GetValue<bool>("Swagger:Enabled"))
 {
     app.UseSwagger();
     app.UseSwaggerUI();

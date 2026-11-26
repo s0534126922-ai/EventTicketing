@@ -18,6 +18,10 @@ public interface IBookingService
         int userId,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<AdminBookingResponseDto>> GetEventBookingsAsync(
+        int eventId,
+        CancellationToken cancellationToken = default);
+
     Task CancelAsync(
         int bookingId,
         int userId,
