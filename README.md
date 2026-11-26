@@ -399,7 +399,9 @@ Latest verified test result:
 בדיקות התחרות הייעודיות משתמשות במספר DbContexts
 וטרנזקציות עצמאיות כדי לאמת את מנגנוני ההגנה.
 
-## Deployment Plan
+## פריסה בענן
+
+המערכת פעילה בענן. [אתר EventTicketing](https://event-ticketing-client.onrender.com) מחובר לשרת ה־API ב־Render, והשרת משתמש במסד PostgreSQL ב־Neon. [תיעוד ה־API ב־Swagger](https://event-ticketing-api-pzy2.onrender.com/swagger/index.html)
 
 - Backend: Render Web Service with Docker.
 - Database: Neon PostgreSQL.
