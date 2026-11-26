@@ -83,6 +83,28 @@ public class BookingRepository : IBookingRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Booking>?> GetEventBookingsReadOnlyAsync(
+        int eventId,
+        CancellationToken cancellationToken = default)
+    {
+        if (!await _context.Events.AnyAsync(
+                eventEntity => eventEntity.Id == eventId,
+                cancellationToken))
+        {
+            return null;
+        }
+
+        return await _context.Bookings
+            .AsNoTracking()
+            .Where(booking => booking.EventSeat.EventId == eventId)
+            .Include(booking => booking.User)
+            .Include(booking => booking.EventSeat)
+                .ThenInclude(eventSeat => eventSeat.Seat)
+            .OrderBy(booking => booking.EventSeat.Seat.SeatNumber)
+            .ThenBy(booking => booking.Id)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task AddAsync(
         Booking booking,
         CancellationToken cancellationToken = default)

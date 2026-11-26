@@ -39,6 +39,7 @@ public sealed class HttpApiFactory : WebApplicationFactory<Program>
                     ["Jwt:Audience"] = JwtAudience,
 
                     ["SeedAdmin:Name"] = null,
+                    ["Database:ApplyMigrationsOnStartup"] = "false",
                     ["SeedAdmin:Email"] = null,
                     ["SeedAdmin:Password"] = null
                 });

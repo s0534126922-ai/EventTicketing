@@ -1,0 +1,8 @@
+**/bin
+**/obj
+**/logs
+**/.env
+**/.env.*
+.git
+.vs
+EventTicketing.Tests

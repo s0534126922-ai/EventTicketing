@@ -20,6 +20,7 @@ public class HallsController : ControllerBase
     }
 
     [HttpGet]
+    [AllowAnonymous]
     [ProducesResponseType(
         typeof(IReadOnlyList<HallResponseDto>),
         StatusCodes.Status200OK)]
